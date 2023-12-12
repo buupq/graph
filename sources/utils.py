@@ -82,11 +82,11 @@ def visualize_results(results: Dict):
     # train and test loss
     fig, ax = plt.subplots(1, 2, figsize=(10,4))
     ax[0].plot(results['train_loss'], label='train_loss')
-    ax[0].plot(results['test_loss'], label='test_loss')
+    ax[0].plot(results['val_loss'], label='val_loss')
     ax[0].set_title("LOSS")
     ax[0].legend()
     
     ax[1].plot(results['train_acc'], label='train_acc')
-    ax[1].plot(results['test_acc'], label='test_acc')
+    ax[1].plot(results['val_acc'], label='val_acc')
     ax[1].set_title("ACCURACY")
     ax[1].legend()
