@@ -1,5 +1,3 @@
-
-# setup training function
 import torch
 import torch_geometric
 from tqdm.auto import tqdm
@@ -14,8 +12,7 @@ def train(model: torch.nn.Module,
           loss_fn: torch.nn.Module,
           optimizer: torch.optim.Adam,
           epochs: int=10,
-          print_results: bool=False,
-          adjacency = None):
+          print_results: bool=False):
 
     # initilize training and validating results
     results = {
@@ -31,27 +28,31 @@ def train(model: torch.nn.Module,
 
     # loop over epochs
     for epoch in tqdm(range(epochs)):
+        
         # zero our gradient
         optimizer.zero_grad()
+
         # compute logit
-        if adjacency is not None:
-            logit = model(data.x, adjacency)
-        else:
-            logit = model(data.x)
+        logit = model(data.x, data.edge_index)
+
         # compute train loss
         train_loss = loss_fn(
             input=logit[data.train_mask],
             target=data.y[data.train_mask]
         )
+        
         # train accuracy
         train_acc = accuracy(
             y_pred=torch.argmax(logit[data.train_mask], dim=1),
             y_true=data.y[data.train_mask]
         )
+        
         # back propagation
         train_loss.backward()
+        
         # optimizer step
         optimizer.step()
+        
         # perform training validation every 20 steps
         if epoch % 20 == 0:
             # compute validation loss
@@ -59,6 +60,7 @@ def train(model: torch.nn.Module,
                 input=logit[data.val_mask],
                 target=data.y[data.val_mask]
             )
+            
             # compute validation accuracy
             val_acc = accuracy(
                 y_pred=torch.argmax(logit[data.val_mask], dim=1),
@@ -79,18 +81,17 @@ def train(model: torch.nn.Module,
     # return train and validation results
     return results
 
+# test function
 def test(model: torch.nn.Module,
-        data: torch_geometric.data.data.Data,
-        adjacency=None):
+        data: torch_geometric.data.data.Data):
 
     # switch model to evaluation mode
     model.eval()
     with torch.inference_mode():
-        if adjacency is not None:
-            test_logit = model(data.x, adjacency)
-        else:
-            test_logit = model(data.x)
-            
+        # test logit
+        test_logit = model(data.x, data.edge_index)
+        
+        # test accuracy
         test_acc = accuracy(
             y_pred=torch.argmax(test_logit[data.test_mask], dim=1),
             y_true=data.y[data.test_mask]
