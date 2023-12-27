@@ -169,3 +169,94 @@ def test_repression(model: torch.nn.Module,
         test_logit = model(data.x, data.edge_index)
 
     return functional.mse_loss(out.squeeze()[data.test_mask], data.y[data.test_mask].float())
+
+
+# train function
+def train_graph_sage(model: torch.nn.Module,
+          dataloader: torch_geometric.loader.neighbor_loader.NeighborLoader,
+          loss_fn: torch.nn.Module,
+          optimizer: torch.optim.Adam,
+          device: torch.device,
+          epochs: int=10,
+          print_results: bool=False):
+
+    
+    # initilize training and validating results
+    results = {
+        'epoch'     : [],
+        'train_loss': [],
+        'train_acc' : [],
+        'val_loss'  : [],
+        'val_acc'   : []
+    }
+    
+    # switch to training mode
+    model.train()
+
+    # loop over epochs
+    for epoch in tqdm(range(epochs)):
+        
+        train_loss, train_acc = 0, 0
+        val_loss, val_acc = 0, 0
+        
+        for batch in dataloader:
+            
+            # send data to device
+            batch = batch.to(device)
+        
+            # zero our gradient
+            optimizer.zero_grad()
+
+            # compute logit
+            logit = model(batch.x, batch.edge_index)
+
+            # compute train loss
+            loss = loss_fn(
+                input=logit[batch.train_mask],
+                target=batch.y[batch.train_mask]
+            )
+            train_loss += loss.item()
+
+            # train accuracy
+            train_acc += accuracy(
+                y_pred=torch.argmax(logit[batch.train_mask], dim=1),
+                y_true=batch.y[batch.train_mask]
+            )
+
+            # back propagation
+            loss.backward()
+
+            # optimizer step
+            optimizer.step()
+        
+            # compute validation loss
+            val_loss += loss_fn(
+                input=logit[batch.val_mask],
+                target=batch.y[batch.val_mask]
+            )
+            
+            # compute validation accuracy
+            val_acc += accuracy(
+                y_pred=torch.argmax(logit[batch.val_mask], dim=1),
+                y_true=batch.y[batch.val_mask]
+            )
+
+        train_loss /= len(dataloader)
+        train_acc /= len(dataloader)
+        val_loss /= len(dataloader)
+        val_acc /= len(dataloader)
+        
+        # collecting results every 20 epochs
+        if epoch % 20 == 0:
+            results['epoch'].append(epoch)
+            results['train_loss'].append(train_loss)
+            results['train_acc'].append(train_acc.item())
+            results['val_loss'].append(val_loss.item())
+            results['val_acc'].append(val_acc.item())
+
+            # printing training and validating result every 20 epochs
+            if print_results:
+                print(f"{epoch:5d} | {train_loss:.3f} | {train_acc:.3f} | {val_loss:.3f} | {val_acc:.3f}")
+
+    # return train and validation results
+    return results
